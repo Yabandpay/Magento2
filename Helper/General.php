@@ -253,11 +253,7 @@ class General extends AbstractHelper
         $description = $order->getIncrementId();
         $notifyUrl = $this->getNotifyUrl();
         $redirectUrl = $this->getRedirectUrl();
-        $payInfo = $this->getApiInstance()->payment($paymentMethod, $order->getId(), $orderTotalAmount, $this->getPayCurrency(), $description, $redirectUrl, $notifyUrl);
-        if(isset($payInfo['url']) && !empty($payInfo['url'])){
-            return $payInfo['url'];
-        }
-        return '';
+        return $this->getApiInstance()->payment($paymentMethod, $order->getId(), $orderTotalAmount, $this->getPayCurrency(), $description, $redirectUrl, $notifyUrl);
     }
 
     /**
@@ -290,16 +286,6 @@ class General extends AbstractHelper
     public function getCheckoutUrl()
     {
         return $this->urlBuilder->getUrl('checkout/cart');
-    }
-
-    /**
-     * Restart Url Builder
-     *
-     * @return string
-     */
-    public function getRestartUrl()
-    {
-        return $this->urlBuilder->getUrl('mollie/checkout/restart/');
     }
 
     /**
@@ -355,8 +341,7 @@ class General extends AbstractHelper
     public function verifyAccountToken()
     {
         try{
-            $this->getApiInstance()->verify();
-            return true;
+            return $this->getApiInstance()->verify();
         }catch(\Exception $e){
             return false;
         }

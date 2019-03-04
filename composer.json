@@ -1,5 +1,5 @@
 {
-  "name": "yabandpay/Magento2",
+  "name": "yabandpay/magento2",
   "description": "YaBand Payment Module for Magento 2",
   "version": "v2.2.0",
   "require": {

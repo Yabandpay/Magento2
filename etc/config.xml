@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © 2015 Magento. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <payment>
+            <yabandpay_wechatpay>
+                <debug>1</debug>
+                <active>1</active>
+                <payment_images>1</payment_images>
+                <order_status>pending_payment</order_status>
+                <order_status_pending>pending_payment</order_status_pending>
+                <order_status_processing>processing</order_status_processing>
+                <invoice_notify>1</invoice_notify>
+                <currency>1</currency>
+                <can_authorize>1</can_authorize>
+                <can_capture>1</can_capture>
+                <can_use_checkout>1</can_use_checkout>
+                <sort_order>1</sort_order>
+                <title>WeChat Pay</title>
+                <payment_action>authorize</payment_action>
+                <model>YaBandPay\Payment\Model\WechatPay</model>
+            </yabandpay_wechatpay>
+            <yabandpay_alipay>
+                <debug>1</debug>
+                <active>1</active>
+                <payment_images>1</payment_images>
+                <order_status>pending_payment</order_status>
+                <order_status_pending>pending_payment</order_status_pending>
+                <order_status_processing>processing</order_status_processing>
+                <invoice_notify>1</invoice_notify>
+                <currency>1</currency>
+                <can_authorize>1</can_authorize>
+                <can_capture>1</can_capture>
+                <can_use_checkout>1</can_use_checkout>
+                <sort_order>1</sort_order>
+                <title>Alipay</title>
+                <payment_action>authorize</payment_action>
+                <model>YaBandPay\Payment\Model\AliPay</model>
+            </yabandpay_alipay>
+        </payment>
+    </default>
+</config>

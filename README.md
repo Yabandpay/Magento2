@@ -24,7 +24,7 @@ Locate the root of your Magento® 2 store.
 
 Enter the command line in your Root and wait as composer will download the extension for you:
 ```shell
-composer require yabandpay/payment
+composer require yabandpay/magento2
 ```
 When it’s finished you can activate the extension, clean the caches and deploy the content in your Magento® environment using the following command line;
 ```shell

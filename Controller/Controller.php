@@ -14,6 +14,7 @@ use Magento\Checkout\Model\Session;
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\View\Result\PageFactory;
 use Magento\Payment\Helper\Data;
+use YaBandPay\Payment\Logger\Logger;
 
 abstract class Controller extends Action
 {
@@ -37,4 +38,8 @@ abstract class Controller extends Action
      * @var \YaBandPay\Payment\Model\AbstractPayment
      */
     protected $paymentInstance;
+    /**
+     * @var Logger $logger
+     */
+    protected $logger;
 }

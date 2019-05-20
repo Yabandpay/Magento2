@@ -25,8 +25,9 @@ use YaBandPay\PersiLiao\Api;
 use YaBandPay\PersiLiao\Cryptography;
 use YaBandPay\PersiLiao\Payment;
 use YaBandPay\PersiLiao\Request;
-use function dirname;
+use function implode;
 use function round;
+use function var_export;
 
 /**
  * Class General
@@ -49,10 +50,14 @@ class General extends AbstractHelper
     const YABANDPAY_ALIPAY_DESC = 'payment/' . self::MODULE_CODE . '/alipay_desc';
     const YABANDPAY_CURRENCY = 'payment/' . self::MODULE_CODE . '/currency';
     const YABANDPAY_FEE = 'payment/' . self::MODULE_CODE . '/fee';
+    const YABANDPAY_AUTO_EMAIL = 'payment/' . self::MODULE_CODE . '/auto_send_email';
+    const YABANDPAY_AUTO_INVOICE = 'payment/' . self::MODULE_CODE . '/auto_invoice';
     const YABANDPAY_DEBUG = 'payment/' . self::MODULE_CODE . '/debug';
 
     const YABANDPAY_STATUS_PENDING = 'payment/' . self::MODULE_CODE . '/pending_status';
-    const YABANDPAY_STATUS_PROCESSING = 'payment/' . self::MODULE_CODE . '/processing_status';
+    const YABANDPAY_ORDER_PAID_STATUS = 'payment/' . self::MODULE_CODE . '/order_paid_status';
+
+    const PAY_NEW = 'new';
 
     const PAY_PENDING = 'pending';
 
@@ -216,6 +221,18 @@ class General extends AbstractHelper
     }
 
     /**
+     * Selected processing status
+     *
+     * @param int $storeId
+     *
+     * @return mixed
+     */
+    public function getStatusProcessing()
+    {
+        return $this->getStoreConfig(self::YABANDPAY_ORDER_PAID_STATUS) ?: Payment::PAY_PROCESSING;
+    }
+
+    /**
      * Write to log
      *
      * @param $type
@@ -224,9 +241,9 @@ class General extends AbstractHelper
     public function addTolog($type, $data)
     {
         if($type == 'error'){
-            $this->logger->addErrorLog($type, $data);
+            $this->logger->addErrorLog($data);
         }else{
-            $this->logger->addInfoLog($type, $data);
+            $this->logger->addInfoLog($data);
         }
     }
 
@@ -235,8 +252,6 @@ class General extends AbstractHelper
         if(self::$apiInstance === null){
             $account = $this->getApiAccount();
             $token = $this->getApiToken();
-            $this->addTolog('info', 'Account:' . $account);
-            $this->addTolog('info', 'Token:' . $token);
             self::$apiInstance = new Api(new Account($account, $token), new Request(new Cryptography($token)));
         }
         return self::$apiInstance;
@@ -249,11 +264,24 @@ class General extends AbstractHelper
         }else{
             $paymentMethod = Payment::WECHAT;
         }
+
         $orderTotalAmount = $this->getOrderTotalAmount($order);
-        $description = $order->getIncrementId();
+        $description = $this->getOrderProduct($order);
         $notifyUrl = $this->getNotifyUrl();
         $redirectUrl = $this->getRedirectUrl();
         return $this->getApiInstance()->payment($paymentMethod, $order->getId(), $orderTotalAmount, $this->getPayCurrency(), $description, $redirectUrl, $notifyUrl);
+    }
+
+    protected function getOrderProduct(Order $order)
+    {
+        $productList = [];
+        foreach($order->getAllItems() as $item){
+            $product = $item->getData();
+            if(isset($product['name']) && !empty($product['name'])){
+                $productList[] = $product['name'];
+            }
+        }
+        return implode(',', $productList);
     }
 
     /**
@@ -289,18 +317,6 @@ class General extends AbstractHelper
     }
 
     /**
-     * Selected processing status
-     *
-     * @param int $storeId
-     *
-     * @return mixed
-     */
-    public function getStatusProcessing()
-    {
-        return self::PAY_PROCESSING;
-    }
-
-    /**
      * Selected pending (payment) status
      *
      * @param int $storeId
@@ -309,13 +325,23 @@ class General extends AbstractHelper
      */
     public function getStatusPending()
     {
-        return $this->getStoreConfig(self::YABANDPAY_STATUS_PENDING);
+        return $this->getStoreConfig(self::YABANDPAY_STATUS_PENDING) ?: Payment::PAY_NEW;
     }
 
     public function getFee()
     {
         $fee = $this->getStoreConfig(self::YABANDPAY_FEE);
         return $fee < 0 ? 0 : $fee;
+    }
+
+    public function getAuthSendEmail()
+    {
+        return (bool)$this->getStoreConfig(self::YABANDPAY_AUTO_EMAIL);
+    }
+
+    public function getAuthInvoice()
+    {
+        return (bool)$this->getStoreConfig(self::YABANDPAY_AUTO_INVOICE);
     }
 
     /**
@@ -341,8 +367,10 @@ class General extends AbstractHelper
     public function verifyAccountToken()
     {
         try{
-            return $this->getApiInstance()->verify();
+            $info = $this->getApiInstance()->verify();
+            return $info;
         }catch(\Exception $e){
+            $this->addTolog('info', 'VerifyAccount Exception:' . $e->getMessage());
             return false;
         }
     }

@@ -12,7 +12,9 @@ use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Escaper;
 use Magento\Framework\View\Asset\Repository as AssetRepository;
 use Magento\Payment\Helper\Data as PaymentHelper;
+use function var_export;
 use YaBandPay\Payment\Helper\General as YaBandWechatPayHelper;
+use YaBandPay\Payment\Logger\Logger;
 use YaBandPay\PersiLiao\Payment;
 
 /**
@@ -48,15 +50,20 @@ class PaymentConfigProvider implements ConfigProviderInterface
      * @var YaBandWechatPayHelper
      */
     private $yabandpayPaymentHelper;
+    /**
+     * @var Logger $logger
+     */
+    private $logger;
 
     /**
-     * MollieConfigProvider constructor.
-     *
+     * PaymentConfigProvider constructor.
      * @param PaymentHelper $paymentHelper
      * @param CheckoutSession $checkoutSession
      * @param AssetRepository $assetRepository
      * @param ScopeConfigInterface $scopeConfig
      * @param Escaper $escaper
+     * @param YaBandWechatPayHelper $yabandpayPaymentHelper
+     * @param Logger $logger
      */
     public function __construct(
         PaymentHelper $paymentHelper,
@@ -64,7 +71,8 @@ class PaymentConfigProvider implements ConfigProviderInterface
         AssetRepository $assetRepository,
         ScopeConfigInterface $scopeConfig,
         Escaper $escaper,
-        YaBandWechatPayHelper $yabandpayPaymentHelper
+        YaBandWechatPayHelper $yabandpayPaymentHelper,
+        Logger $logger
     )
     {
         $this->paymentHelper = $paymentHelper;
@@ -73,6 +81,7 @@ class PaymentConfigProvider implements ConfigProviderInterface
         $this->assetRepository = $assetRepository;
         $this->scopeConfig = $scopeConfig;
         $this->yabandpayPaymentHelper = $yabandpayPaymentHelper;
+        $this->logger = $logger;
     }
 
 
@@ -84,22 +93,22 @@ class PaymentConfigProvider implements ConfigProviderInterface
     public function getConfig()
     {
         $config = [];
-        $isActive = $this->yabandpayPaymentHelper->verifyAccountToken();
-        if($isActive === false){
-            return $config;
-        }
-        if($this->yabandpayPaymentHelper->getIsActiveWechatPay() === true){
+        $activeWechatPay = $this->yabandpayPaymentHelper->getIsActiveWechatPay();
+        if( $activeWechatPay === true){
             $config['payment'][WechatPay::CODE]['isActive'] = true;
+            $config['payment'][WechatPay::CODE]['title'] = Payment::WECHAT . $this->yabandpayPaymentHelper->getWechatPayDesc();
         }else{
             $config['payment'][WechatPay::CODE]['isActive'] = false;
         }
-        $config['payment'][WechatPay::CODE]['title'] = Payment::WECHAT . $this->yabandpayPaymentHelper->getWechatPayDesc();
-        if($this->yabandpayPaymentHelper->getIsActiveAlipay() === true){
+        $activeAliPay = $this->yabandpayPaymentHelper->getIsActiveAlipay();
+
+        if($activeAliPay === true){
             $config['payment'][AliPay::CODE]['isActive'] = true;
+            $config['payment'][AliPay::CODE]['title'] = Payment::ALIPAY . $this->yabandpayPaymentHelper->getAlipayDesc();
         }else{
             $config['payment'][AliPay::CODE]['isActive'] = false;
         }
-        $config['payment'][AliPay::CODE]['title'] = Payment::ALIPAY . $this->yabandpayPaymentHelper->getAlipayDesc();
+
         return $config;
     }
 }

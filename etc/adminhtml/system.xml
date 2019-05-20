@@ -30,7 +30,11 @@
                 </field>
                 <field id="pending_status" translate="label" type="select" sortOrder="6" showInDefault="1" showInWebsite="1" showInStore="0">
                     <label>New Order Status</label>
-                    <source_model>YaBandPay\Payment\Model\Config\Source\Order\Status\Pending</source_model>
+                    <source_model>YaBandPay\Payment\Model\Config\Source\Order\Status\Order</source_model>
+                </field>
+                <field id="order_paid_status" translate="label" type="select" sortOrder="6" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Payment Completed Status</label>
+                    <source_model>YaBandPay\Payment\Model\Config\Source\Order\Status\Order</source_model>
                 </field>
                 <field id="username" translate="label" type="text" sortOrder="7" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>YaBand Account</label>
@@ -44,6 +48,14 @@
                 </field>
                 <field id="fee" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Fee(%)</label>
+                </field>
+                <field id="auto_send_email" translate="label" type="select" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Auto Send Email</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="auto_invoice" translate="label" type="select" sortOrder="12" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Auto Invoice</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
             </group>
             <!-- payment-group -->

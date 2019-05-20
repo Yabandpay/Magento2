@@ -17,6 +17,7 @@ use Magento\Framework\View\Result\PageFactory;
 use Magento\Payment\Helper\Data as PaymentHelper;
 use YaBandPay\Payment\Controller\Controller;
 use YaBandPay\Payment\Helper\General as YaBandWechatPayHelper;
+use YaBandPay\Payment\Logger\Logger;
 
 class Redirect extends Controller
 {
@@ -33,12 +34,14 @@ class Redirect extends Controller
         Context $context,
         Session $checkoutSession,
         PaymentHelper $paymentHelper,
-        YaBandWechatPayHelper $yaBandWechatPayHelper
+        YaBandWechatPayHelper $yaBandWechatPayHelper,
+        Logger $logger
     )
     {
         $this->checkoutSession = $checkoutSession;
         $this->paymentHelper = $paymentHelper;
         $this->yaBandWechatPayHelper = $yaBandWechatPayHelper;
+        $this->logger = $logger;
         parent::__construct($context);
     }
 
@@ -56,13 +59,14 @@ class Redirect extends Controller
                 return;
             }
             $payment = $order->getPayment();
-            if(!isset($payment)){
+            if(!isset($payment) || empty($payment)){
+                $this->yaBandWechatPayHelper->addTolog('error', 'Order Payment is empty');
                 $this->_redirect('checkout/cart');
                 return;
             }
             $method = $order->getPayment()->getMethod();
             $methodInstance = $this->paymentHelper->getMethodInstance($method);
-            if($methodInstance instanceof \YaBandPay\Payment\Model\AbstractPayment || $methodInstance instanceof \YaBandPay\Payment\Model\AliPay){
+            if($methodInstance instanceof \YaBandPay\Payment\Model\AbstractPayment){
                 $redirectUrl = $methodInstance->startTransaction($order);
                 /**
                  * @var Http $response

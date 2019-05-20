@@ -14,7 +14,9 @@ define(
         rendererList
     ) {
         'use strict';
-        if(window.checkoutConfig.payment.yabandpay_wechatpay.isActive){
+        console.log(window.checkoutConfig);
+
+        if (window.checkoutConfig.payment.yabandpay_wechatpay.isActive) {
             rendererList.push(
                 {
                     type: 'yabandpay_wechatpay',
@@ -22,7 +24,8 @@ define(
                 }
             );
         }
-        if(window.checkoutConfig.payment.yabandpay_alipay.isActive){
+
+        if (window.checkoutConfig.payment.yabandpay_alipay.isActive) {
             rendererList.push(
                 {
                     type: 'yabandpay_alipay',
@@ -30,6 +33,7 @@ define(
                 }
             );
         }
+
         /** Add view logic here if needed */
         return Component.extend({});
     }

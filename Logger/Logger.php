@@ -19,14 +19,12 @@ class Logger extends \Monolog\Logger
      * @param $type
      * @param $data
      */
-    public function addInfoLog($type, $data)
+    public function addInfoLog($data)
     {
-        if (is_array($data)) {
-            $this->addInfo($type . ': ' . json_encode($data));
-        } elseif (is_object($data)) {
-            $this->addInfo($type . ': ' . json_encode($data));
-        } else {
-            $this->addInfo($type . ': ' . $data);
+        if(is_array($data) || is_object($data)){
+            $this->addInfo(json_encode($data));
+        }else{
+            $this->addInfo($data);
         }
     }
 
@@ -36,14 +34,12 @@ class Logger extends \Monolog\Logger
      * @param $type
      * @param $data
      */
-    public function addErrorLog($type, $data)
+    public function addErrorLog($data)
     {
-        if (is_array($data)) {
-            $this->addError($type . ': ' . json_encode($data));
-        } elseif (is_object($data)) {
-            $this->addError($type . ': ' . json_encode($data));
-        } else {
-            $this->addError($type . ': ' . $data);
+        if(is_array($data) || is_object($data)){
+            $this->addError(json_encode($data));
+        }else{
+            $this->addError($data);
         }
     }
 }

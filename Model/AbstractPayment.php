@@ -8,6 +8,7 @@ use Magento\Framework\Api\ExtensionAttributesFactory;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Data\Collection\AbstractDb;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Model\Context;
 use Magento\Framework\Model\ResourceModel\AbstractResource;
 use Magento\Framework\ObjectManagerInterface;
@@ -19,9 +20,11 @@ use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Email\Sender\InvoiceSender;
 use Magento\Sales\Model\Order\Email\Sender\OrderSender;
 use Magento\Sales\Model\OrderRepository;
+use Magento\Sales\Model\Service\InvoiceService;
 use Magento\Store\Model\StoreManagerInterface;
 use YaBandPay\Payment\Helper\General as YaBandWechatPayHelper;
 use YaBandPay\PersiLiao\Payment;
+use function var_export;
 
 /**
  * Class AbstractPayment
@@ -105,6 +108,14 @@ abstract class AbstractPayment extends AbstractMethod
      * @var SearchCriteriaBuilder
      */
     private $searchCriteriaBuilder;
+    /**
+     * @var InvoiceService
+     */
+    private $invoiceService;
+    /**
+     * @var Registry
+     */
+    private $registry;
 
     /**
      * Mollie constructor.
@@ -146,6 +157,7 @@ abstract class AbstractPayment extends AbstractMethod
         InvoiceSender $invoiceSender,
         OrderRepository $orderRepository,
         SearchCriteriaBuilder $searchCriteriaBuilder,
+        InvoiceService $invoiceService,
         AbstractResource $resource = null,
         AbstractDb $resourceCollection = null,
         array $data = []
@@ -173,6 +185,8 @@ abstract class AbstractPayment extends AbstractMethod
         $this->invoiceSender = $invoiceSender;
         $this->orderRepository = $orderRepository;
         $this->searchCriteriaBuilder = $searchCriteriaBuilder;
+        $this->invoiceService = $invoiceService;
+        $this->registry = $registry;
     }
 
     /**
@@ -192,6 +206,7 @@ abstract class AbstractPayment extends AbstractMethod
         $order->setCanSendNewEmailFlag(false);
 
         $status = $this->yaBandWechatPayHelper->getStatusPending();
+        $this->yaBandWechatPayHelper->addTolog('info', 'Pending Status:' . var_export($status, true));
         $stateObject->setState(Order::STATE_NEW);
         $stateObject->setStatus($status);
         $stateObject->setIsNotified(false);
@@ -206,12 +221,17 @@ abstract class AbstractPayment extends AbstractMethod
     {
         try{
             $orderPayUrl = $this->yaBandWechatPayHelper->getOrderPayUrl($order->getPayment()->getMethod(), $order);
+            if($this->yaBandWechatPayHelper->getAuthSendEmail()){
+                $order->setCanSendNewEmailFlag(true);
+                $this->orderSender->send($order);
+            }
             if(empty($orderPayUrl)){
                 return $this->yaBandWechatPayHelper->getCheckoutUrl();
             }
             $message = __('Customer redirected to YaBandPay, url: %1', $orderPayUrl);
             $status = $this->yaBandWechatPayHelper->getStatusPending();
             $order->addStatusToHistory($status, $message, false);
+            $order->setStatus($status);
             $order->save();
             return $orderPayUrl;
         }catch(\Exception $e){
@@ -235,17 +255,20 @@ abstract class AbstractPayment extends AbstractMethod
                 return $msg;
             }
             $status = $orderInfo['state'];
-            if($order->getState() && $status == YaBandWechatPayHelper::PAY_PAID){
-                if(!$order->getIsVirtual()){
-                    $defaultStatusProcessing = $this->yaBandWechatPayHelper->getStatusProcessing();
-                    if($defaultStatusProcessing && ($defaultStatusProcessing != $order->getStatus())){
-                        $order->setStatus($defaultStatusProcessing)
-                            ->setData(Payment::META_TRANSACTION_ID, $orderInfo['transaction_id'])
-                            ->setData(Payment::META_TRADE_ID, $orderInfo['trade_id'])
-                            ->save();
-                    }
+            if($status == YaBandWechatPayHelper::PAY_PAID && $order->getStatus() !== Payment::PAY_PROCESSING){
+                $processingStatus = $this->yaBandWechatPayHelper->getStatusProcessing();
+                $this->yaBandWechatPayHelper->addTolog('info', 'Pending Status:' . var_export($processingStatus, true));
+                $order->setStatus($processingStatus)
+                    ->setData(Payment::META_TRANSACTION_ID, $orderInfo['transaction_id'])
+                    ->setData(Payment::META_TRADE_ID, $orderInfo['trade_id'])
+                    ->save();
+                $order = $this->order->load($orderInfo['order_id']);
+                if($this->yaBandWechatPayHelper->getAuthInvoice()){
+                    $this->autoBuildOrderInvoice($order);
                 }
-
+                if($this->yaBandWechatPayHelper->getAuthSendEmail()){
+                    $this->orderSender->send($order);
+                }
                 $msg = [ 'success' => true, 'status' => 'paid', 'order_id' => $orderInfo['order_id'] ];
                 $this->yaBandWechatPayHelper->addTolog('success', $msg);
                 return $msg;
@@ -258,5 +281,58 @@ abstract class AbstractPayment extends AbstractMethod
             $this->yaBandWechatPayHelper->addTolog('error', $msg);
             return $msg;
         }
+    }
+
+    protected function autoBuildOrderInvoice(\Magento\Sales\Model\Order $order)
+    {
+        if(!$order->getId()){
+            throw new \Magento\Framework\Exception\LocalizedException(__('The order no longer exists.'));
+        }
+
+        if(!$order->canInvoice()){
+            throw new \Magento\Framework\Exception\LocalizedException(
+                __('The order does not allow an invoice to be created.')
+            );
+        }
+
+        $invoice = $this->invoiceService->prepareInvoice($order, []);
+
+        if(!$invoice){
+            throw new LocalizedException(__('We can\'t save the invoice right now.'));
+        }
+
+        if(!$invoice->getTotalQty()){
+            throw new \Magento\Framework\Exception\LocalizedException(
+                __('You can\'t create an invoice without products.')
+            );
+        }
+        $this->registry->register('current_invoice', $invoice);
+
+        $invoice->register();
+
+        $invoice->getOrder()->setCustomerNoteNotify(true);
+        $invoice->getOrder()->setIsInProcess(true);
+        $invoice->setSendEmail(true);
+
+        $transactionSave = $this->objectManager->create(
+            \Magento\Framework\DB\Transaction::class
+        )->addObject(
+            $invoice
+        )->addObject(
+            $invoice->getOrder()
+        );
+
+        $transactionSave->save();
+        try{
+            $sendStatus = $this->invoiceSender->send($invoice, true);
+            if($sendStatus){
+                $this->yaBandWechatPayHelper->addTolog('info', 'Invoice Send Email Success');
+            }else{
+                $this->yaBandWechatPayHelper->addTolog('error', 'Invoice Send Email Failed');
+            }
+        }catch(\Exception $e){
+            $this->yaBandWechatPayHelper->addTolog('info', 'Invoice Send Email:' . $e->getMessage());
+        }
+
     }
 }

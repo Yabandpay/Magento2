@@ -7,16 +7,20 @@
 namespace YaBandPay\Payment\Model\Config\Source\Order\Status;
 
 
+use YaBandPay\PersiLiao\Payment;
+
 /**
  * Order Status source model
  */
-class Pending
+class Order
 {
     public function toOptionArray()
     {
         $statuses = [
-            'new' => 'new',
-            'pending' => 'pending'
+            Payment::PAY_PENDING => Payment::PAY_PENDING,
+            Payment::PAY_PROCESSING => Payment::PAY_PROCESSING,
+            Payment::PAY_PAID => Payment::PAY_PAID,
+            Payment::PAY_COMPLETED => Payment::PAY_COMPLETED,
         ];
 
         $options = [ [ 'value' => '', 'label' => __('-- Please Select --') ] ];
